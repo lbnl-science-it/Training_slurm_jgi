@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <meta name="author" content="September 20, 2021" />
+  <title>Slurm training: How job scheduling works</title>
+  <style>
+    html {
+      line-height: 1.5;
+      font-family: Georgia, serif;
+      font-size: 20px;
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      word-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 1em;
+      }
+    }
+    @media print {
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, 'Lucida Console', Consolas, monospace;
+      font-size: 85%;
+      margin: 0;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    span.underline{text-decoration: underline;}
+    div.column{display: inline-block; vertical-align: top; width: 50%;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    ul.task-list{list-style: none;}
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">Slurm training: How job scheduling works</h1>
+<p class="author">September 20, 2021</p>
+<p class="date">Wei Feinstein</p>
+</header>
+<h1 id="outline">Outline</h1>
+<p>This training session will cover the following topics:</p>
+<ul>
+<li>Submitting Jobs
+<ul>
+<li>Serial jobs</li>
+<li>Parallel jobs</li>
+<li>Other kinds of jobs</li>
+<li>Checking on running jobs</li>
+<li>Possible submission errors</li>
+</ul></li>
+<li>How Slurm Works
+<ul>
+<li>Introduction to queueing on clusters</li>
+<li>Slurm details</li>
+<li>How Slurm is set up on Lawrencium</li>
+</ul></li>
+<li>Common Queue Questions
+<ul>
+<li>Why isn’t my job running (yet)?</li>
+<li>Making jobs run sooner</li>
+</ul></li>
+</ul>
+<h1 id="the-lawrencium-cluster">The Lawrencium cluster</h1>
+<center>
+<img src="images/lrc-ood.png" width=80%>
+</center>
+<h1 id="slurms-job">Slurm’s job</h1>
+<p>All computations are done by submitting jobs to the scheduling software that manages jobs on the cluster, called Slurm.</p>
+<p>Lawrencium uses Slurm to:</p>
+<ol type="1">
+<li>Allocate access to resources (compute nodes) for users’ jobs</li>
+<li>Start and monitor jobs on allocated resources</li>
+<li>Manage the queue of pending jobs</li>
+</ol>
+<p>Why is this necessary? Otherwise your jobs would be slowed down by other people’s jobs running on the same node. This also allows everyone to fairly share Lawrencium</p>
+<h1 id="submitting-jobs-accounts-and-partitions">Submitting jobs: accounts and partitions</h1>
+<p>You can see what accounts you have access to and which partitions within those accounts as follows:</p>
+<pre><code>sacctmgr show associations -p user=$USER</code></pre>
+<p>Here’s an example of a user who has access to a condo, a PCA and a special departmental account:</p>
+<pre><code>[wfeinstein@perceus-00 ~]$ sacctmgr show assoc -p user=jfroula
+Cluster|Account|User|Partition|Share|Priority|GrpJobs|GrpTRES|GrpSubmit|GrpWall|GrpTRESMins|MaxJobs|MaxTRES|MaxTRESPerNode|MaxSubmit|MaxWall|MaxTRESMins|QOS|Def QOS|GrpTRESRunMins|
+perceus-00|jgicloud|jfroula|ood_inter|1|||||||||||||lr_interactive|||
+perceus-00|jgicloud|jfroula|jgi|1|||||||||||||normal|||
+perceus-00|lr_jgicloud|jfroula|lr3|1|||||||||||||condo_jgicloud|||
+perceus-00|pc_jaws|jfroula|ood_inter|1|||||||||||||lr_interactive|||
+perceus-00|pc_jaws|jfroula|cm1|1|||||||||||||cm1_debug,cm1_normal|||
+perceus-00|pc_jaws|jfroula|cf1|1|||||||||||||cf_debug,cf_normal|||
+perceus-00|pc_jaws|jfroula|es1|1|||||||||||||es_debug,es_normal|||
+perceus-00|pc_jaws|jfroula|lr_bigmem|1|||||||||||||lr_debug,lr_normal|||
+perceus-00|pc_jaws|jfroula|lr6|1|||||||||||||lr_debug,lr_normal|||
+perceus-00|pc_jaws|jfroula|lr5|1|||||||||||||lr_debug,lr_normal|||
+perceus-00|pc_jaws|jfroula|lr4|1|||||||||||||lr_debug,lr_normal|||
+perceus-00|pc_jaws|jfroula|lr3|1|||||||||||||lr_debug,lr_normal|||
+perceus-00|pc_jaws|jfroula|lr2|1||||||||||0|||lr_debug,lr_normal|||</code></pre>
+<ul>
+<li>Condo account lr_jgicloud, access to partition=lr3 with QoS=condo_jgicloud</li>
+<li>PCA account pc_jaws, access to all the Lawrencium partitions, including ES1 (gpu) with QoS=lr_normal/lr_debug.</li>
+<li>Departmental account jgicloud, access to the standalone cluster jgi with QoS=normal</li>
+</ul>
+<h1 id="submitting-a-batch-serial-job">Submitting a batch serial job</h1>
+<p>Let’s see how to submit a simple job. If your job will only use the resources on a single node, you can do the following.</p>
+<p>Here’s an example job script that I’ll run. You’ll need to modify the <code>--account</code> value and possibly the <code>--partition</code> value.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/bin/bash</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Job name:</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="co">#SBATCH --job-name=serial-job</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Account:</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="co">#SBATCH --account=co_jgicloud</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Partition:</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="co">#SBATCH --partition=lr3</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="co"># QoS</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="co">#SBATCH --qos=condo_jgicloud</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a><span class="co"># Wall clock limit (one here):</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a><span class="co">#SBATCH --time=1:00:00</span></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Node#</span></span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a><span class="co">#SBATCH --node=1</span></span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a><span class="co">#SBATCH -o %j.out # Standard output</span></span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a><span class="co">#SBATCH -e %j.err # Standard error</span></span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a><span class="co">## Command(s) to run:</span></span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a><span class="ex">module</span> load python/3.6</span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> calc.py <span class="op">&gt;&amp;</span> calc.out</span></code></pre></div>
+<h1 id="submitting-a-batch-serial-jobs-in-parallel">Submitting a batch serial jobs in parallel</h1>
+<ul>
+<li>GNU Parallel is a shell tool for executing jobs in parallel on one or multiple computers.</li>
+<li>A job can be a single core serial task, multi-core or MPI application, or command that reads from a pipe.</li>
+<li>The typical input
+<ul>
+<li>A bash file to run a serial task and a task list</li>
+<li>A list of parameters required for each task</li>
+<li>A SLURM job submission script where GNU parallel launches parallel tasks</li>
+</ul></li>
+</ul>
+<h1 id="submitting-a-batch-serial-jobs-in-parallel-1">Submitting a batch serial jobs in parallel</h1>
+<h4 id="serial-bash-and-tasks">Serial bash and tasks</h4>
+<div class="sourceCode" id="cb4"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/bin/bash</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="ex">module</span> load  bio/blast/2.6.0</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="ex">blastp</span> -query <span class="va">$1</span> -db ../blast/db/img_v400_PROT.00 -out <span class="va">$2</span>  -outfmt 7 -max_target_seqs 10 <span class="kw">\</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="ex">-num_threads</span> <span class="va">$3</span></span></code></pre></div>
+<p>where $1, $2 and $3 are the three parameters required for each serial task</p>
+<h4 id="task-list">Task list</h4>
+<p>A list of task parameters in the format of one line per task.</p>
+<pre><code>[user@n0002 BRC] cat task.lst    
+ ../blast/data/protein1.faa
+ ../blast/data/protein2.faa
+...
+ ../blast/data/protein100.faa
+ </code></pre>
+<h1 id="submitting-a-batch-serial-jobs-in-parallel-2">Submitting a batch serial jobs in parallel</h1>
+<h4 id="job-submission-using-gnu-parallel">Job submission using GNU parallel</h4>
+<div class="sourceCode" id="cb6"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/bin/bash</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="co">#SBATCH --job-name=job-name</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="co">#SBATCH --account=account_name</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="co">#SBATCH --partition=partition_name</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="co">#SBATCH --nodes=2 </span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="co">#SBATCH --time=2:00:00</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="ex">module</span> load gnu-parallel/2019.03.22</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">WDIR=</span>/your/desired/path</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> <span class="va">$WDIR</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">JOBS_PER_NODE=$SLURM_CPUS_ON_NODE</span></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a><span class="va">JOBS_PER_NODE=$((</span> <span class="va">$SLURM_CPUS_ON_NODE</span>  / NTHREADS <span class="va">))</span></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="va">$SLURM_JOB_NODELIST</span> <span class="kw">|</span><span class="fu">sed</span> s/\,/<span class="dt">\\</span>n/g <span class="op">&gt;</span> hostfile</span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a><span class="ex">parallel</span> --jobs <span class="va">$JOBS_PER_NODE</span> --slf hostfile --wd <span class="va">$WDIR</span> --joblog task.log --resume --progress <span class="kw">\</span></span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>               <span class="ex">--colsep</span> <span class="st">&#39; &#39;</span> -a task.lst sh run-blast.sh {} <span class="ex">output</span>/<span class="dt">{/.}</span><span class="ex">.blst</span> <span class="va">$NTHREADS</span></span></code></pre></div>
+<p>More information of how to use <a href="https://sites.google.com/a/lbl.gov/high-performance-computing-services-group/getting-started/faq">GNU Parallel</a></p>
+<h1 id="parallel-job-submission">Parallel job submission</h1>
+<p>If you are submitting a job that uses multiple nodes, you’ll need to carefully specify the resources you need. The key flags for use in your job script are:</p>
+<ul>
+<li><code>--nodes</code> (or <code>-N</code>): indicates the number of nodes to use</li>
+<li><code>--ntasks-per-node</code>: indicates the number of tasks (i.e., processes) one wants to run on each node</li>
+<li><code>--cpus-per-task</code> (or <code>-c</code>): indicates the number of cpus to be used for each task</li>
+</ul>
+<p>In addition, in some cases it can make sense to use the <code>--ntasks</code> (or <code>-n</code>) option to indicate the total number of tasks and let the scheduler determine how many nodes and tasks per node are needed.</p>
+<p>Here’s an example job script for a job that uses MPI for parallelizing over multiple nodes:</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/bin/bash</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Account:</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="co">#SBATCH --account=account_name</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Partition:</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="co">#SBATCH --partition=partition_name</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Number of MPI tasks needed for use case (example):</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a><span class="co">#SBATCH --ntasks=40</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Processors per task:</span></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a><span class="co">#SBATCH --cpus-per-task=1</span></span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a><span class="co"># Wall clock limit:</span></span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a><span class="co">#SBATCH --time=00:00:30</span></span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a><span class="co">## Command(s) to run (example):</span></span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a><span class="ex">module</span> load intel openmpi</span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a><span class="co">## This will run a.out using 40 (i.e., $SLURM_NTASKS) MPI tasks</span></span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a><span class="ex">mpirun</span> ./a.out</span></code></pre></div>
+<h1 id="gpu-jobs">GPU jobs</h1>
+<p>Each ES1 (GPU partition) node has multiple GPUs, 2xV100 or 4x2080Ti.</p>
+<ul>
+<li>You can request as many GPUs as your code will use.</li>
+</ul>
+<pre><code>#!/bin/bash
+# Account:
+#SBATCH --account=account_name
+#
+# Partition:
+#SBATCH --partition=es1
+#
+# Processors per task (please always specify the total number of processors twice the number of GPUs):
+#SBATCH --cpus-per-task=2
+#
+#Number of GPUs, this can be in the format of &quot;gpu:[1-4]&quot;, or &quot;gpu:V100:[1-2] with the type included
+#SBATCH --gres=gpu:1
+#
+#SBATCH --constraint=es1_2080ti
+#
+# Wall clock limit:
+#SBATCH --time=4:00:00
+#
+## Command(s) to run (example):
+module load ml/tensorflow/2.3.0-py37 cudnn/7.6.5
+python ./ai_model.out</code></pre>
+<h1 id="slurm-related-environment-variables">Slurm-related environment variables</h1>
+<p>When you write your code, you may need to specify information about the number of cores to use. Slurm will provide a variety of variables that you can use in your code so that it adapts to the resources you have requested rather than being hard-coded.</p>
+<p>Here are some of the variables that may be useful:</p>
+<ul>
+<li>SLURM_JOB_ID</li>
+<li>SLURM_CPUS_ON_NODE</li>
+<li>SLURM_NODELIST</li>
+<li>SLURM_NNODES</li>
+<li>SLURM_SUBMIT_DIR</li>
+<li>SLURM_NTASKS</li>
+</ul>
+<pre><code>JOBS_PER_NODE=$SLURM_CPUS_ON_NODE
+$SLURM_JOB_NODELIST |sed s/\,/\\n/g &gt; hostfile</code></pre>
+<h1 id="monitoring-jobs">Monitoring jobs</h1>
+<p>Now let’s submit and monitor the job:</p>
+<ul>
+<li>Submit a batch job</li>
+</ul>
+<pre><code>sbatch job.sh</code></pre>
+<ul>
+<li>Request an interactive node(s): debugging, code testing…</li>
+</ul>
+<pre><code>srun -A jgicloud -p jgi -q normal -N 1 -t 1:0:0  --pty bash </code></pre>
+<ul>
+<li>Monitor jobs</li>
+</ul>
+<pre><code>squeue -j &lt;JOB_ID&gt;</code></pre>
+<p>After a job has completed (or been terminated/cancelled), you can review the maximum memory used (and other information) via the sacct command.</p>
+<pre><code>sacct -j &lt;JOB_ID&gt; --format=JobID,JobName,MaxRSS,Elapsed</code></pre>
+<p>MaxRSS will show the maximum amount of memory that the job used in kilobytes. You can also login to the node where you are running and use commands like <em>top</em> and <em>ps</em>:</p>
+<pre><code>srun --jobid=&lt;JOB_ID&gt; --pty /bin/bash</code></pre>
+<h1 id="more-monitoring-tools">More monitoring tools</h1>
+<ul>
+<li>wwall -j <JOB_ID></li>
+</ul>
+<pre><code>(base) [wfeinstein@n0000 ~]$ wwall -j 41663157
+--------------------------------------------------------------------------------
+ Node      Cluster        CPU       Memory (MB)      Swap (MB)      Current
+ Name       Name       [util/num] [% used/total]   [% used/total]   Status
+n0213.lr6               96%  (40) % 16237/192058   % 1837/8191      READY</code></pre>
+<ul>
+<li>sq: squeue wrapper</li>
+</ul>
+<pre><code>[wfeinstein@n0000 ~]$ module load sq/0.1.0
+[wfeinstein@n0000 ~]$ sq -u tianruix
+Showing results for user tianruix
+No running or queued jobs.
+Recent jobs (most recent job first):
++----------+------+---------+--------+----------+---------------------+-----------+
+|  Job ID  | Name | Account | Nodes  | Elapsed  |         End         |   State   |
++----------+------+---------+--------+----------+---------------------+-----------+
+| 41665488 | bash |   scs   | 1x es1 | 01:00:01 | 2021-09-20 03:23:37 |  TIMEOUT  |
+| 41608199 | test |   scs   | 1x lr6 | 00:20:15 | 2021-09-15 14:17:11 | CANCELLED |
+| 41608114 | test |   scs   | 1x lr6 | 00:00:00 | 2021-09-15 13:56:18 | CANCELLED |
++----------+------+---------+--------+----------+---------------------+-----------+
+</code></pre>
+<h1 id="some-possible-submission-errors">Some possible submission errors</h1>
+<p>Here are some errors that might result in your job never even being queued.</p>
+<ul>
+<li>Make sure account/partition/QoS combo is legitimate:</li>
+<li>Request 2 CPUs for each GPU:</li>
+<li>Request memory with a partition with “shared” resources:
+<ul>
+<li>jgi cluster is shared or Oversubscribe=FORCE</li>
+<li>–mem=32000 (unit is MB)</li>
+</ul></li>
+<li>Need to request PCA renewal or pay for extra service units</li>
+</ul>
+<pre><code>[wfeinstein@n0000 ~]$ check_usage.sh -a pc_jaws
+Usage for ACCOUNT pc_jaws [2019-10-01T00:00:00, 2021-09-14T14:41:07]: 8 jobs, 418.14 CPUHrs, 255.06 (300000) SUs</code></pre>
+<h1 id="how-slurm-works-on-lawrencium">How Slurm works on Lawrencium</h1>
+<ul>
+<li>Introduction to queueing on clusters</li>
+<li>Slurm details</li>
+<li>How Slurm is set up on Lawrencium</li>
+</ul>
+<h1 id="slurm-overview">Slurm Overview</h1>
+<ul>
+<li>An open source, fault-tolerant, and highly scalable cluster management and job scheduling system for large and small Linux clusters</li>
+<li>Manage job submission and scheduling on Lawrencium</li>
+<li>Control user access to the resources on Lawrencium, different partitions, project account…</li>
+<li>Manage the queue of pending jobs based on assigning priorities to jobs</li>
+<li>Optimize how jobs with different resource requirements can be accommodated</li>
+</ul>
+<h1 id="slurm-architecture">Slurm architecture</h1>
+<center>
+<img src="images/slurm.gif" width=40%>
+</center>
+<h1 id="slurmdbd---database-daemon">Slurmdbd - database daemon</h1>
+<ul>
+<li>A mysql database daemon runs on the master node</li>
+<li>Track all user account information</li>
+<li>Track all job information</li>
+<li>Track all configuration information
+<ul>
+<li>partitions, qos, nodename and resources, all transactions…</li>
+</ul></li>
+<li>Commands used for this database: sacctmgr</li>
+</ul>
+<h1 id="slurmd---node-management-daemon">Slurmd - node management daemon</h1>
+<ul>
+<li>Run on all the compute nodes</li>
+<li>Track state of a node: down, up, idle, alloc</li>
+<li>Track resources available on a node</li>
+<li>Track jobs running on a node</li>
+<li>Launch and kill jobs on a node</li>
+</ul>
+<h1 id="slurmctld---control-daemon-runs-on-service-node">Slurmctld - control daemon runs on service node</h1>
+<ul>
+<li>Communicate to Slurmdbd for accounting information</li>
+<li>Communicate to Slurmd for state of compute nodes
+<ul>
+<li>Available resources, state of nodes</li>
+<li>What job should be scheduled to run on what node and semi-reserve that node for the job</li>
+</ul></li>
+<li>Read config files to determine how to configure Slurm, such as slurm.conf, gres.conf…</li>
+<li>Communicate and understand Slurm-plugins
+<ul>
+<li>job_submit_collect_script</li>
+<li>job_submit_require_cpu_gpu_ratio</li>
+<li>spank_private_tmpshm</li>
+</ul></li>
+<li>Slurm Authentication: Munge - All communications between Slurm components are authenticated</li>
+<li>User commands: sacct, squeue, sinfo, sbatch, etc</li>
+</ul>
+<h1 id="job-prioritization-factors">Job prioritization factors</h1>
+<ul>
+<li>Priority Plugins define Slurm’s behavior, Priority/multifactor - Sets priority based on:</li>
+<li>Prioroity = QoS + FAIRSHARE + AGE
+<ul>
+<li>QoS: set to prioritize condo users first (1000000), debug (10000), normal (1000) and low_prio (0)</li>
+<li>Fairshare: usage and raw share</li>
+<li>Job age: the length of time a job has been waiting in the queue. max’s out at 1.0. The default is 7 days</li>
+<li>Partition: same for all Lawrencium partitions</li>
+</ul></li>
+<li><em>sprio</em>: report components of job priority</li>
+</ul>
+<pre><code>[root@master ~]# sprio -w
+      JOBID PARTITION   PRIORITY       SITE       AGE  FAIRSHARE  PARTITION        QOS
+        Weights                          1       1000     100000      10000    1000000</code></pre>
+<ul>
+<li>Job priorities</li>
+</ul>
+<pre><code>[root@master ~]# sprio 
+       JOBID    PARTITION   PRIORITY       SITE        AGE  FAIRSHARE  PARTITION        QOS
+       29720530 lr6           101101          0       1000     100000          1        100
+       29921123 lr6           101101          0       1000     100000          1        100
+       32149398 lr5           101101          0       1000     100000          1        100
+       41571189 lr4           135009          0        346      34663          1     100000
+       32197264 lr3           101101          0       1000     100000          1        100
+       32335880 lr4           101101          0       1000     100000          1        100
+       41568087 es1           141978          0       1000      40977          1     100000
+       38845439 vulcan         29196          0       1000      27195          1       1000
+....</code></pre>
+<h1 id="quality-of-service-qos">Quality of Service (QoS)</h1>
+<ul>
+<li>Used to set resource limits at group, job, user levels:
+<ul>
+<li>Max node count</li>
+<li>Max CPU</li>
+<li>Max user submission</li>
+<li>Max walltime</li>
+<li>Job Scheduling Priority</li>
+<li>Job Preemption</li>
+</ul></li>
+</ul>
+<pre><code>perceus-00|lr_jgicloud|jfroula|lr3|1|||||||||||||condo_jgicloud|||
+perceus-00|pc_jaws|jfroula|ood_inter|1|||||||||||||lr_normal|||
+perceus-00|jgicloud|jfroula|jgi|1|||||||||||||normal|||
+
+[root@master ~]# sacctmgr show qos -p format=&quot;Name,GrpTRES,MaxWall,MaxTRESPerUser%30,Priority,Preempt&quot;|grep condo_jgicloud
+condo_jgicloud|node=40|||100000|lr_lowprio| 
+
+[wfeinstein@n0000 ~]$ sacctmgr show qos -p format=&quot;Name,GrpTRES,MaxWall,MaxTRESPerUser%30,Priority,Preempt&quot;|grep lr_normal
+lr_normal||3-00:00:00||1000|lr6_lowprio,lr_lowprio|
+
+[root@master ~]# sacctmgr show qos -p format=&quot;Name,GrpTRES,MaxWall,MaxTRESPerUser%30,Priority,Preempt&quot;|grep normal
+normal|||1000|1000||</code></pre>
+<h1 id="how-priorities-and-queuing-on-lawrencium-work-1">How priorities and queuing on Lawrencium work (1)</h1>
+<ul>
+<li>Primary projects/accounts to run jobs on Lawrencium:
+<ul>
+<li>Departmental cluster account (jgi)</li>
+<li>PI computing allowance (PCA) (pc_jaws)</li>
+<li>Condo account, buy-in (lr_jgicloud)</li>
+<li>Recharge account, pay as you go</li>
+</ul></li>
+</ul>
+<h1 id="condo-jobs">Condo jobs</h1>
+<ul>
+<li>Aggregated over all users of the condo, limited to at most the number of nodes purchased by the condo at any given time.</li>
+<li>Additional jobs will be queued until usage drops below that limit.</li>
+<li>The pending jobs will be ordered based on the Slurm Fairshare priority, with users with less recent usage prioritized.</li>
+<li>Some circumstances, even when the condo’s usage is below the limit, a condo job might not start immediately
+<ul>
+<li>Because the partition is fully used, across all condo and PCA users of the given partition.</li>
+<li>This can occur when a condo has not been fully used and FCA jobs have filled up the partition during that period of limited usage.</li>
+<li>Condo jobs are prioritized over FCA jobs in the queue and will start as soon as resources become available.</li>
+<li>Usually any lag in starting condo jobs under this circumstance is limited.</li>
+</ul></li>
+</ul>
+<h1 id="pca-pi-computing-allowance-jobs">PCA (PI Computing Allowance) jobs</h1>
+<ul>
+<li>Start when they reach the top of the queue and resources become available as running jobs finish.</li>
+<li>The queue is ordered based on the Slurm Fairshare priority (specifically the Fair Tree algorithm).</li>
+<li>The primary influence on this priority is the overall recent usage by all users in the same PCA as the user submitting the job.</li>
+<li>Jobs from multiple users within an PCA are then influenced by their individual recent usage.</li>
+<li>In more detail, usage at the PCA level (summed across all partitions) is ordered across all PCAs,
+<ul>
+<li>Priority for a given job depends inversely on that recent usage (based on the FCA the job is using).</li>
+<li>Similarly, amongst users within an PCA, usage is ordered amongst those users, such that for a given partition, a user with lower recent usage in that partition will have higher priority than one with higher recent usage.</li>
+</ul></li>
+</ul>
+<h2 id="recharge-jobs">Recharge jobs</h2>
+<ul>
+<li>Similar to PCA jobs, but pay as you go.</li>
+<li>Have access to QoS=lr_lowprio, no charge but can be preempted by higher priority jobs</li>
+</ul>
+<h1 id="common-queue-questions">Common Queue Questions</h1>
+<ul>
+<li>Why isn’t my job running (yet)?</li>
+<li>When is my job expected to start?</li>
+<li>How can I get my job to start sooner?</li>
+</ul>
+<h1 id="why-isnt-my-job-running-yet">Why isn’t my job running (yet)?</h1>
+<p>Could be for various reasons, including:</p>
+<ul>
+<li>Waiting for other higher priority jobs to finish</li>
+<li>Running this job would exceed a condo/QoS limit</li>
+<li>Incompatible parameters with the QoS (even though it made it to the queue)</li>
+</ul>
+<h2 id="squeue"><code>squeue</code></h2>
+<ul>
+<li>If you need more specific information
+<ul>
+<li><code>REASON</code> are explained in <code>man squeue</code></li>
+</ul></li>
+<li>Common <code>REASON</code></li>
+<li><code>PRIORITY</code> - There are other higher priority jobs ahead of yours</li>
+<li><code>RESOURCES</code> - This job is next in priority and is waiting for available nodes</li>
+<li><code>Dependency</code> - This job is waiting for a dependent job to complete</li>
+<li><code>QOSGrpNodeLimit</code> - The maximum number of nodes available to the partition are in use</li>
+</ul>
+<h1 id="when-is-my-job-expected-to-start-pending">When is my job expected to start? (PENDING)</h1>
+<p>Check jgi partition status</p>
+<pre><code>sinfo -p jgi --Node --format=&quot;%P %a %N %D %T %C  %O %c %z %m %e %d %w&quot;
+PARTITION AVAIL NODELIST NODES STATE CPUS(A/I/O/T)  CPU_LOAD CPUS S:C:T MEMORY FREE_MEM TMP_DISK WEIGHT
+jgi up n0000.jgi0 1 idle 0/32/0/32  0.01 32 2:16:1 257868 251742 0 1
+jgi up n0001.jgi0 1 idle 0/32/0/32  0.01 32 2:16:1 257868 251909 0 1
+jgi up n0002.jgi0 1 idle 0/32/0/32  0.01 32 2:16:1 257868 251883 0 1
+jgi up n0003.jgi0 1 idle 0/32/0/32  0.01 32 2:16:1 257868 251933 0 1
+...</code></pre>
+<p>Check how many other pending jobs there are in the queue:</p>
+<div class="sourceCode" id="cb22"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="ex">squeue</span> -p jgi --state=PD -l -O JOBID,PARTITION,NAME,USERNAME,STATE,TIMELIMIT,REASON,PRIORITY</span></code></pre></div>
+<p>Higher priority means it will try to run sooner.</p>
+<p>If status is <code>RESOURCES</code>, you may check to get an <em>estimated</em> start time</p>
+<div class="sourceCode" id="cb23"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="ex">squeue</span> --start -u <span class="va">$USER</span></span></code></pre></div>
+<p>or</p>
+<div class="sourceCode" id="cb24"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="ex">scontrol</span> show job=JobID <span class="kw">|</span><span class="fu">grep</span> -i StartTime</span></code></pre></div>
+<h1 id="how-can-i-get-my-job-to-start-sooner">How can I get my job to start sooner?</h1>
+<ul>
+<li>Shorten the time limit. Slurm may be able to fit a shorter job in a small gap between other jobs.</li>
+<li>Request fewer nodes (or cores on partitions scheduled by cores). Perhaps there are a few nodes available right now but you would have to wait for other jobs to release other nodes if you wanted more.</li>
+<li>Choose condo QoS if possible for higher priority.</li>
+<li>Choose a partition with more idle nodes
+<ul>
+<li><code>sinfo -o %P,%A</code> (Partition, Allocated/Idle)</li>
+</ul></li>
+<li>High recent usage decreases FCA priority.</li>
+</ul>
+<h1 id="how-to-get-additional-help">How to get additional help</h1>
+<ul>
+<li>For technical issues and questions about using Lawrencium:
+<ul>
+<li>hpcshelp@lbl.gov</li>
+</ul></li>
+<li>For questions about computing resources in general, including cloud computing:
+<ul>
+<li>Office hours: Wed. 10:30 -noon <a href="http://scs.lbl.gov/getting-help">on Zoom</a></li>
+</ul></li>
+<li>HPCS <a href="http://scs.lbl.gov/home">online</a></li>
+</ul>
+<h1 id="qa">Q&amp;A</h1>
+</body>
+</html>
