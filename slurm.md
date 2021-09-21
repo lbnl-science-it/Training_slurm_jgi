@@ -10,7 +10,6 @@ This training session will cover the following topics:
 - Submitting Jobs 
     - Serial jobs
     - Parallel jobs
-    - Other kinds of jobs
     - Checking on running jobs
     - Possible submission errors
 - How Slurm Works 
@@ -18,7 +17,7 @@ This training session will cover the following topics:
     - Slurm details
     - How Slurm is set up on Lawrencium
 - Common Queue Questions
-    - Why isn't my job running (yet)?
+    - Why isn't my job running 
     - Making jobs run sooner
      
 
@@ -27,7 +26,7 @@ This training session will cover the following topics:
 <center><img src="images/lrc-ood.png" width=80%></center>
 
 
-# Slurm's job
+# Why use Slurm
 
 All computations are done by submitting jobs to the scheduling software that manages jobs on the cluster, called Slurm.
 
@@ -197,7 +196,7 @@ module load intel openmpi
 mpirun ./a.out
 ```
 
-# GPU jobs
+# Submitting jobs to es1 GPU partition 
 
 Each ES1 (GPU partition) node has multiple GPUs, 2xV100 or 4x2080Ti.
 

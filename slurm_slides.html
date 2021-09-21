@@ -100,7 +100,6 @@ September 20, 2021
 <ul>
 <li>Serial jobs</li>
 <li>Parallel jobs</li>
-<li>Other kinds of jobs</li>
 <li>Checking on running jobs</li>
 <li>Possible submission errors</li>
 </ul></li>
@@ -112,7 +111,7 @@ September 20, 2021
 </ul></li>
 <li>Common Queue Questions
 <ul>
-<li>Why isn’t my job running (yet)?</li>
+<li>Why isn’t my job running</li>
 <li>Making jobs run sooner</li>
 </ul></li>
 </ul>
@@ -123,8 +122,8 @@ September 20, 2021
 <img src="images/lrc-ood.png" width=80%>
 </center>
 </div>
-<div id="slurms-job" class="slide section level1">
-<h1>Slurm’s job</h1>
+<div id="why-use-slurm" class="slide section level1">
+<h1>Why use Slurm</h1>
 <p>All computations are done by submitting jobs to the scheduling software that manages jobs on the cluster, called Slurm.</p>
 <p>Lawrencium uses Slurm to:</p>
 <ol style="list-style-type: decimal">
@@ -274,8 +273,8 @@ perceus-00|pc_jaws|jfroula|lr2|1||||||||||0|||lr_debug,lr_normal|||</code></pre>
 <span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a><span class="co">## This will run a.out using 40 (i.e., $SLURM_NTASKS) MPI tasks</span></span>
 <span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a><span class="ex">mpirun</span> ./a.out</span></code></pre></div>
 </div>
-<div id="gpu-jobs" class="slide section level1">
-<h1>GPU jobs</h1>
+<div id="submitting-jobs-to-es1-gpu-partition" class="slide section level1">
+<h1>Submitting jobs to es1 GPU partition</h1>
 <p>Each ES1 (GPU partition) node has multiple GPUs, 2xV100 or 4x2080Ti.</p>
 <ul>
 <li>You can request as many GPUs as your code will use.</li>
